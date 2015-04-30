@@ -1,0 +1,239 @@
+<?php
+
+/**
+ * @file
+ * module  with Drupal Nodes & Views
+ */
+
+/**
+ * @defgroup tripal_domain Domain Module
+ * @ingroup tripal_modules
+ * @{
+ * Integrates the Chado Domain module with Drupal Nodes
+ * @}
+ */
+require_once 'theme/tripal_domain.theme.inc';
+require_once 'includes/tripal_domain.chado_node.inc';
+require_once 'includes/tripal_domain.admin.inc';
+/**
+ * Implements hook_permission().
+ *
+ * Set the permission types that the chado module uses.  Essentially we
+ * want permissionis that protect creation, editing and deleting of chado
+ * data objects
+ *
+ * @ingroup tripal_phylotree
+ */
+function tripal_domain_permission() {
+  return array(
+    'access chado_domain content' => array(
+      'title' => t('View Domains'),
+      'description' => t('Allow users to view domain pages.'),
+    ),
+    'administer tripal domain' => array(
+      'title' => t('Administer Domains'),
+      'description' => t('Allow users to administer all domains.'),
+    ),
+  );
+}
+
+/**   Hooks allow modules to interact with the Drupal core.
+ * Implements hook_menu().
+ *
+ * Menu items are automatically added for the new node types created
+ * by this module to the 'Create Content' Navigation menu item.  This function
+ * adds more menu items needed for this module.
+ *
+ * @ingroup tripal_domain
+ */
+function tripal_domain_menu() {
+  $items = array();
+
+  // administration landing page. currently has no content but is
+  // apparently required for the Sync and Help links to work.
+  $items['admin/tripal/extension/tripal_domain'] = array(
+    'title' => 'Domains', #that point to path Home » Administration » Tripal » ChadoDomains
+    'description' => 'Protein Domains and their count per species',
+    'page callback' => 'tripal_domain_admin_domains_listing',
+    'access arguments' => array('administer tripal domain'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // 3 tabs under link http://localhost:9090/#overlay=admin/tripal/extension/tripal_domain 
+  // help menu # HELP tab 
+  $items['admin/tripal/extension/tripal_domain/help'] = array(
+    'title' => 'Help',
+    'description' => 'Basic Description of Tripal Domain Module Functionality',
+    'page callback' => 'theme',
+    'page arguments' => array('tripal_domain_help'),
+    'access arguments' => array('administer tripal domain'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10
+  );
+  // configuration menu item # SETTINGS tab
+  $items['admin/tripal/extension/tripal_domain/configuration'] = array(
+    'title' => 'Settings',
+    'description' => 'Configure the Tripal Domain module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('tripal_domain_admin'),
+    'access arguments' => array('administer tripal domain'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5
+  );
+
+  // sync menu item (will be rendered as a tab by tripal)# SYNC tab
+  $items['admin/tripal/extension/tripal_domain/sync'] = array(
+    'title' => ' Sync',
+    'description' => 'Create pages on this site for domain features stored in Chado',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('chado_node_sync_form', 'tripal_domain', 'chado_domain'),
+    'access arguments' => array('administer tripal domain'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 2
+  );
+  
+ 
+/*
+  $items['chado_feature/%'] = array(
+    'page callback' => 'phylotree_by_name',
+    'page arguments' => array(1),
+    'access callback' => TRUE // allow all anonymous http clients
+   );
+
+   $items['chado_gene_phylotree/%/text'] = array(
+    'page callback' => 'phylotree_by_genename_text',
+    // found this strategy described here: http://stackoverflow.com/questions/2285944/returning-untemplated-output-in-drupal-from-menu-callback-function
+    // not sure if it has advantages over the simpler approach described in the top answer, but seemed worth exploring
+    'delivery callback' => 'tripal_phylotree_text_deliver',
+    'page arguments' => array(1),
+    'access callback' => TRUE // allow all anonymous http clients
+   );
+  
+  
+   // create a route for viewing json of all phylonodes having this phylotree_id
+   $items['chado_phylotree/%/json'] = array(
+    'page callback' => 'phylotree_json',
+    'page arguments' => array(1),
+    'access callback' => TRUE // allow all anonymous http clients
+   );
+ 
+*/  
+  
+   return $items;
+}
+
+/**
+ * Implements hook_views_api().
+ *
+ * Essentially this hook tells drupal that there is views support for
+ *  for this module which then includes tripal_db.views.inc where all the
+ *  views integration code is
+ *
+ * @ingroup tripal_domain
+ */
+function tripal_domain_views_api() {
+    $path = drupal_get_path('module', 'tripal_domain');
+    return array(
+        'api' => 3.0,
+        'path' => $path . '/views',    #this is a path in directory structure where files reside
+        'template path' => $path .'/themes'
+    );
+}
+
+/**
+ * Implements hook_search_biological_data_views().
+ * Adds the described views to the "Search Data" Page created by Tripal Views
+ *
+ * @ingroup tripal_domain
+ */
+
+function tripal_domain_search_biological_data_views() {
+  return array(
+      'tripal_domain_user_domain' => array(
+          'machine_name' => 'tripal_domain_user_domain',
+          'human_name' => 'Domains',
+          'description' => 'Protein domains, count of domain-to-gene per species, links to gene page etc.',
+          'link' => 'search/protein_domains'
+    ),
+  );
+}
+
+/**
+ *  Implements hook_theme().
+ *
+ * We need to let drupal know about our theme functions and their arguments.
+ *  We create theme functions to allow users of the module to customize the
+ *  look and feel of the output generated in this module
+ *
+ * @ingroup tripal_phylotree
+ */
+/*
+function tripal_domain_theme($existing, $type, $theme, $path) {
+  $core_path = drupal_get_path('module', 'tripal_core');
+  $items = array(
+    // built-in theme
+    'node__chado_feature' => array(
+      'template' => 'node--chado-generic',
+      'render element' => 'node',
+      'base hook' => 'node',
+      'path' => "$core_path/theme/templates",
+    ),
+    // base template for this page (default tab) includes the phylogram 
+    'tripal_phylotree_base' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_base',
+      'path' => "$path/theme/templates",
+    ),
+    // partial for organisms block
+    'tripal_phylotree_organisms' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_organisms',
+      'path' => "$path/theme/templates",
+    ),
+    // partial for phylotree radial block
+    'tripal_phylotree_radial' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_radial',
+      'path' => "$path/theme/templates",
+    ),
+    // partial for cross references block
+    'tripal_phylotree_references' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_references',
+      'path' => "$path/theme/templates",
+    ),
+    // partial for cross references block
+    'tripal_phylotree_analysis' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_analysis',
+      'path' => "$path/theme/templates",
+    ),
+    // partial for teaser view
+    'tripal_phylotree_teaser' => array(
+      'variables' => array('node' => NULL),
+      'template' => 'tripal_phylotree_teaser',
+      'path' => "$path/theme/templates",
+    ),
+  );
+  return $items;
+}
+peu commented out */ 
+/**
+ * Implements hook_help().
+ * Adds a help page to the module list
+ *
+ * @ingroup tripal_phylotree
+ */
+function tripal_domain_help ($path, $arg) {
+  if ($path == 'admin/help#tripal_domain') {
+    return theme('tripal_domain_help', array());
+  }
+}
+
+function tripal_domain_text_deliver($page_callback_result) {
+	print $page_callback_result;
+	drupal_exit();
+}
+
+// hack to suppress the 'Submitted by...' info drupal adds to nodes
+$variables['display_submitted'] = FALSE;

@@ -1,0 +1,504 @@
+<?php
+/**
+ * Implements hook_requirements().
+ *
+ * @ingroup tripal_domain
+ */
+function tripal_domain_requirements($phase) {
+  $requirements = array();
+  if ($phase == 'install') {
+    // make sure chado is installed
+    if (!$GLOBALS["chado_is_installed"]) {
+      $requirements ['tripal_domain'] = array(
+          'title' => "tripal_domain",
+          'value' => "ERROR: Chado must be installed before this module can be enabled",
+          'severity' => REQUIREMENT_ERROR,
+      );
+    }
+  }
+  return $requirements;
+}
+
+/**
+ * Implements hook_install()
+ * Allows installation of the tripal_domain module
+ */
+
+function tripal_domain_install() {
+   // add the materializedviews
+   tripal_domain_add_mview();
+
+   // we want to integrate the materialized views so that they
+   // are available for Drupal Views, upon which our search forms are built
+   tripal_domain_intergrate_view();
+  
+   $mview_id =  tripal_get_mview_id('domain');   
+  
+   tripal_populate_mview($mview_id);
+
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function tripal_domain_uninstall() {
+
+ //not needed?peu $drop_tbl   = chado_query("DROP TABLE IF EXISTS domain");  
+  // Drop the MView table if it exists
+  $mview_id =  tripal_get_mview_id('domain');
+  if ($mview_id) {
+    tripal_delete_mview($mview_id);
+  }
+  //Remove views integration
+  // Note: tripal_remove_views_intergration accepts table_name and priority in a key value form. 
+
+  $delete_view=array(
+    'table_name' => 'domain',
+    'priority' => '-1',
+  );
+  tripal_remove_views_integration($delete_view); 
+
+}
+
+
+
+function tripal_domain_add_mview(){
+ 
+
+   
+    
+  //Materialized view addition
+  
+ $sql_query="WITH count_match as (select count(f.feature_id) count, floc.srcfeature_id from feature f INNER JOIN featureloc floc on floc.feature_id=f.feature_id where f.name is not null and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') group by floc.srcfeature_id),
+count_glyma_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Glycine' and O.species='max'  and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_medtr_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Medicago' and O.species='truncatula' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_phavu_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Phaseolus' and O.species='vulgaris' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_aradu_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Arachis' and O.species='duranensis' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_araip_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Arachis' and O.species='ipaensis' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_cajca_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Cajanus' and O.species='cajan' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+count_cicar_match as (select count(f.feature_id) count, floc.srcfeature_id FROM featureloc floc INNER JOIN feature f on floc.feature_id=f.feature_id INNER JOIN organism O on O.organism_id=f.organism_id where O.genus='Cicer' and O.species='arietinum' and f.type_id=(select cvterm_id from cvterm c,cv where c.name='protein_hmm_match' and c.cv_id=cv.cv_id and cv.name='sequence') GROUP BY floc.srcfeature_id),
+description as (select c.name,c.definition,cd.dbxref_id, d.accession, f.feature_id from dbxref d INNER JOIN cvterm c on d.dbxref_id=c.dbxref_id INNER JOIN cvterm_dbxref cd on c.cvterm_id = cd.cvterm_id INNER JOIN feature f on f.name = (select accession from dbxref where dbxref_id = cd.dbxref_id and db_id IN (select db_id from db where name IN ('PFAM','SMART','PIRSF','TIGRFAMs'))) )
+SELECT
+feature.feature_id AS feature_feature_id,
+feature.name AS feature_name,
+description.name AS cvterm_name,
+description.accession AS IPRterm,
+description.definition AS feature_desc,
+coalesce(count_match.count, 0) as total_count,
+coalesce(count_glyma_match.count, 0) as glyma_count,
+coalesce(count_medtr_match.count, 0) as medtr_count,
+coalesce(count_phavu_match.count, 0) as phavu_count,
+coalesce(count_aradu_match.count, 0) as aradu_count,
+coalesce(count_araip_match.count, 0) as araip_count,
+coalesce(count_cajca_match.count, 0) as cajca_count,
+coalesce(count_cicar_match.count, 0) as cicar_count
+from chado.feature feature
+LEFT JOIN chado_feature chado_feature ON feature.feature_id = chado_feature.feature_id
+LEFT JOIN count_match count_match ON feature.feature_id = count_match.srcfeature_id
+LEFT JOIN count_glyma_match ON feature.feature_id = count_glyma_match.srcfeature_id
+LEFT JOIN count_medtr_match ON feature.feature_id = count_medtr_match.srcfeature_id
+LEFT JOIN count_phavu_match ON feature.feature_id = count_phavu_match.srcfeature_id
+LEFT JOIN count_aradu_match ON feature.feature_id = count_aradu_match.srcfeature_id
+LEFT JOIN count_araip_match ON feature.feature_id = count_araip_match.srcfeature_id
+LEFT JOIN count_cajca_match ON feature.feature_id = count_cajca_match.srcfeature_id
+LEFT JOIN count_cicar_match ON feature.feature_id = count_cicar_match.srcfeature_id
+LEFT JOIN description ON feature.feature_id = description.feature_id
+where feature.type_id IN (select cvterm_id from cvterm c,cv where c.name='polypeptide_domain' and c.cv_id=cv.cv_id and cv.name='sequence')";
+
+
+    //Table domain description
+
+	$schema = array (
+  'table' => 'domain',
+  'fields' => array (
+    'feature_feature_id' => array (
+      'type' => 'int',
+      'not null' => false,
+    ),
+    'feature_name' => array (
+      'type' => 'text',
+      'not null' => false,
+    ),
+   'cvterm_name' => array (
+      'type' => 'text',
+      'not null' => false,
+    ),
+   'IPRterm' => array (
+     'type' => 'text',
+      'not null' => false,
+    ),
+   'feature_desc' => array (
+    'type' => 'text',
+      'not null' => false,
+    ),
+    'total_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      ),
+    'glyma_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      
+    ),
+    'medtr_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      
+    ),
+    'phavu_count' => array (
+      'type' => 'int',
+      'not null' => false,
+     
+    ),
+    'aradu_count' => array (
+      'type' => 'int',
+      'not null' => false,
+     
+    ),
+    'araip_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      
+    ),
+    'cajca_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      
+    ),
+    'cicar_count' => array (
+      'type' => 'int',
+      'not null' => false,
+      
+    ),
+  ),
+  'primary key' => array (
+    0 => 'feature_feature_id',
+  ),
+);
+
+
+
+   // add a comment to make sure this view makes sense to the site administator
+  $comment = t('This view is used to provide a table for searching Protein Domain Pages.');
+  print "\nCreating domain mview.....\n";
+  tripal_add_mview(
+    'domain', // name of materialized view
+    'tripal_domain', // name of module submitting view
+    $schema,      // schema api array representation
+    $sql_query,         // sql query that loads the mview
+    $comment );
+}
+
+/**
+ * Integrate the qtl_search materialized view for use by Drupal Views and
+ * our search form
+ */
+
+function tripal_domain_intergrate_view(){
+    $integration = array (
+  'table' => 'domain',
+  'name' => 'domain',
+  'type' => 'chado',
+  'description' => 'view integration for Materialzied view "domain" ',
+  'priority' => '-1',
+  'base_table' => '1',
+  'fields' => array (
+    'feature_feature_id' => array (
+      'name' => 'feature_feature_id',
+      'title' => 'Feature Feature Id',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'feature_name' => array (
+      'name' => 'feature_name',
+      'title' => 'Domain ID',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'text',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'tripal_views_handler_filter_select_string',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_string',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'cvterm_name' => array (
+      'name' => 'cvterm_name',
+      'title' => 'Domain Name',
+      'description' => 'A short name of domain accession ',
+      'type' => 'text',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'tripal_views_handler_filter_select_string',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_string',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'IPRterm' => array (
+      'name' => 'IPRterm',
+      'title' => 'Interpro term',
+      'description' => 'Interpro IPR term',
+      'type' => 'text',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'tripal_views_handler_filter_select_string',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_string',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'feature_desc' => array (
+      'name' => 'feature_desc',
+      'title' => 'Description',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'text',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'tripal_views_handler_filter_select_string',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_string',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'total_count' => array (
+      'name' => 'total_count',
+      'title' => 'Total Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'glyma_count' => array (
+      'name' => 'glyma_count',
+      'title' => 'Glyma Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'medtr_count' => array (
+      'name' => 'medtr_count',
+      'title' => 'Medtr Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'phavu_count' => array (
+      'name' => 'phavu_count',
+      'title' => 'Phavu Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'aradu_count' => array (
+      'name' => 'aradu_count',
+      'title' => 'Aradu Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'araip_count' => array (
+      'name' => 'araip_count',
+      'title' => 'Araip Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'cajca_count' => array (
+      'name' => 'cajca_count',
+      'title' => 'Cajca Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+    'cicar_count' => array (
+      'name' => 'cicar_count',
+      'title' => 'Cicar Count',
+      'description' => 'TODO: please describe this field!',
+      'type' => 'int',
+      'handlers' => array (
+        'filter' => array (
+          'name' => 'views_handler_filter_numeric',
+        ),
+        'field' => array (
+          'name' => 'views_handler_field_numeric',
+        ),
+        'sort' => array (
+          'name' => 'views_handler_sort',
+        ),
+        'argument' => array (
+          'name' => 'views_handler_argument_numeric',
+        ),
+      ),
+      'joins' => array (
+      ),
+    ),
+  ),
+);
+
+// add the array above that will integrate our qtl_search materialized view
+  // for use with Drupal Views
+  tripal_add_views_integration($integration);
+
+}
+
+
+
+
+
