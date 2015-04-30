@@ -22,8 +22,8 @@ $nodes['chado_domain'] = array(
         'plural' => t('Domains')      // how to refer to the record in plurals
       ),
       'sync_filters' => array(
-        'feature_feature_id' => TRUE,             // if the record has a type_id set to TRUE
-        'feature_name' => TRUE          // if the record has an organism_id set to TRUE
+        'feature_feature_id' => TRUE,             // if the record has a feature_id set to TRUE
+        'feature_name' => TRUE          // if the record has a name set to TRUE
       ),
     )
   );
