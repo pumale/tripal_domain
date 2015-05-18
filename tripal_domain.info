@@ -1,9 +1,9 @@
-name = Tripal Domain
+name = Domain search
 description = Provides a search page for protein domains  
 core = 7.x
 biomaterial = tripal_domain
-package = Tripal
-configure = admin/tripal/chado/tripal_domain
+package = Tripal Extensions
+configure = admin/tripal/extension/tripal_domain
 
 version = 7.x-2.0-rc1
 dependencies[] = tripal_core

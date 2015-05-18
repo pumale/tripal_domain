@@ -93,7 +93,7 @@ function tripal_domain_admin() {
 
 /**
  *
- * @ingroup tripal_phylotree
+ * @ingroup tripal_domain
  */
 function tripal_domain_admin_validate($form, &$form_state) {
 

@@ -26,12 +26,14 @@ require_once 'includes/tripal_domain.admin.inc';
  */
 function tripal_domain_permission() {
   return array(
-    'access chado_domain content' => array(
-      'title' => t('View Domains'),
+
+   'access chado_domain content' => array(
+      'title' => t('View DOMAIN'),
       'description' => t('Allow users to view domain pages.'),
-    ),
+    ), 
+
     'administer tripal domain' => array(
-      'title' => t('Administer Domains'),
+      'title' => t('Administer DOMAIN'),
       'description' => t('Allow users to administer all domains.'),
     ),
   );
@@ -59,16 +61,14 @@ function tripal_domain_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 
-  // 3 tabs under link http://localhost:9090/#overlay=admin/tripal/extension/tripal_domain 
   // help menu # HELP tab 
   $items['admin/tripal/extension/tripal_domain/help'] = array(
     'title' => 'Help',
     'description' => 'Basic Description of Tripal Domain Module Functionality',
     'page callback' => 'theme',
-    'page arguments' => array('tripal_domain_help'),
+    'page arguments' => array('domain_help'),
     'access arguments' => array('administer tripal domain'),
     'type' => MENU_LOCAL_TASK,
-    'weight' => 10
   );
   // configuration menu item # SETTINGS tab
   $items['admin/tripal/extension/tripal_domain/configuration'] = array(
@@ -78,46 +78,18 @@ function tripal_domain_menu() {
     'page arguments' => array('tripal_domain_admin'),
     'access arguments' => array('administer tripal domain'),
     'type' => MENU_LOCAL_TASK,
-    'weight' => 5
-  );
+ );
 
-  // sync menu item (will be rendered as a tab by tripal)# SYNC tab
-  $items['admin/tripal/extension/tripal_domain/sync'] = array(
-    'title' => ' Sync',
-    'description' => 'Create pages on this site for domain features stored in Chado',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('chado_node_sync_form', 'tripal_domain', 'chado_domain'),
-    'access arguments' => array('administer tripal domain'),
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 2
-  );
-  
- 
+
+/* peu adding menu under 'Search' tab */
 /*
-  $items['chado_feature/%'] = array(
-    'page callback' => 'phylotree_by_name',
-    'page arguments' => array(1),
-    'access callback' => TRUE // allow all anonymous http clients
-   );
-
-   $items['chado_gene_phylotree/%/text'] = array(
-    'page callback' => 'phylotree_by_genename_text',
-    // found this strategy described here: http://stackoverflow.com/questions/2285944/returning-untemplated-output-in-drupal-from-menu-callback-function
-    // not sure if it has advantages over the simpler approach described in the top answer, but seemed worth exploring
-    'delivery callback' => 'tripal_phylotree_text_deliver',
-    'page arguments' => array(1),
-    'access callback' => TRUE // allow all anonymous http clients
-   );
-  
-  
-   // create a route for viewing json of all phylonodes having this phylotree_id
-   $items['chado_phylotree/%/json'] = array(
-    'page callback' => 'phylotree_json',
-    'page arguments' => array(1),
-    'access callback' => TRUE // allow all anonymous http clients
-   );
- 
-*/  
+$items['search/protein_domains'] = array(
+    'title' => 'Domains',
+    'description' => 'Provides protein domains search tool',
+    'page arguments' => array('search/protein_domains'),
+    'access arguments' => array('access chado_domain content','create chado_domain content','delete chado_domain content','edit chado_domain content','administer tripal domain'),
+    );
+*/
   
    return $items;
 }
@@ -137,7 +109,9 @@ function tripal_domain_views_api() {
         'api' => 3.0,
         'path' => $path . '/views',    #this is a path in directory structure where files reside
         'template path' => $path .'/themes'
-    );
+
+	);
+
 }
 
 /**
@@ -167,57 +141,19 @@ function tripal_domain_search_biological_data_views() {
  *
  * @ingroup tripal_phylotree
  */
-/*
-function tripal_domain_theme($existing, $type, $theme, $path) {
-  $core_path = drupal_get_path('module', 'tripal_core');
-  $items = array(
-    // built-in theme
-    'node__chado_feature' => array(
-      'template' => 'node--chado-generic',
-      'render element' => 'node',
-      'base hook' => 'node',
-      'path' => "$core_path/theme/templates",
-    ),
-    // base template for this page (default tab) includes the phylogram 
-    'tripal_phylotree_base' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_base',
-      'path' => "$path/theme/templates",
-    ),
-    // partial for organisms block
-    'tripal_phylotree_organisms' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_organisms',
-      'path' => "$path/theme/templates",
-    ),
-    // partial for phylotree radial block
-    'tripal_phylotree_radial' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_radial',
-      'path' => "$path/theme/templates",
-    ),
-    // partial for cross references block
-    'tripal_phylotree_references' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_references',
-      'path' => "$path/theme/templates",
-    ),
-    // partial for cross references block
-    'tripal_phylotree_analysis' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_analysis',
-      'path' => "$path/theme/templates",
-    ),
-    // partial for teaser view
-    'tripal_phylotree_teaser' => array(
-      'variables' => array('node' => NULL),
-      'template' => 'tripal_phylotree_teaser',
-      'path' => "$path/theme/templates",
-    ),
+
+function tripal_domain_theme(){
+$items = array();
+  $path = drupal_get_path('module', 'tripal_domain');
+
+ // Module Help
+  $items['domain_help'] = array(
+    'template' => 'domain_help',
+    'path' => "$path/theme",
   );
-  return $items;
+ return $items;
 }
-peu commented out */ 
+
 /**
  * Implements hook_help().
  * Adds a help page to the module list
@@ -226,7 +162,7 @@ peu commented out */
  */
 function tripal_domain_help ($path, $arg) {
   if ($path == 'admin/help#tripal_domain') {
-    return theme('tripal_domain_help', array());
+    return theme('domain_help');
   }
 }
 

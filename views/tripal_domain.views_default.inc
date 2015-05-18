@@ -9,6 +9,9 @@
  *
  * @ingroup tripal_domain
  */
+
+
+
 function tripal_domain_views_default_views() {
     $views = array();
 
@@ -28,6 +31,8 @@ function tripal_domain_views_default_views() {
     return $views;
 }
 
+
+
 /**
  * Defines the domain user search default view.
  *
@@ -43,6 +48,11 @@ $view->human_name = 'Domain';
 $view->core = 7;
 $view->api_version = '3.0';
 $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
+
+/** Help Page peu ?
+drupal_add_library('system', 'drupal.collapse');
+drupal_add_js(drupal_get_path('module', 'tripal_domain') . '/js/help.js');
+*/
 
 /* Display: Master */
 $handler = $view->new_display('default', 'Master', 'default');
